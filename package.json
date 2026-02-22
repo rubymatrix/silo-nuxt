@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "nuxt dev",
+    "dev:r2": "nuxt dev --dotenv .env.r2",
     "build": "nuxt build",
     "preview": "nuxt preview",
     "test": "vitest run",

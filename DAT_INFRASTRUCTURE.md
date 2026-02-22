@@ -87,7 +87,21 @@ Browser
 https://phoenix-xi.com   (Nuxt SPA, no server proxy needed)
 ```
 
-No proxy route. No intermediate server. The Nuxt app fetches DATs directly from R2 via the CDN. CORS is configured on the R2 bucket to allow `phoenix-xi.com` origins.
+No proxy route. No intermediate server. The Nuxt app fetches DATs from R2 through a Cloudflare Worker that validates a Bearer token on every request. This prevents unauthorized usage of the R2 bucket while keeping traffic on the Cloudflare edge.
+
+```
+Browser
+  |
+  |  fetch('https://dats.phoenix-xi.com/ROM/10/20.DAT', {
+  |    headers: { Authorization: 'Bearer <token>' }
+  |  })
+  |
+  v
+Cloudflare Worker (validates token, returns 403 if invalid)
+  |
+  v
+R2 Bucket (phoenix-dat-files, private)
+```
 
 ## App Changes Required
 
@@ -506,3 +520,56 @@ https://dats.phoenix-xi.com/phoenix/ROM/10/20.DAT
 https://dats.phoenix-xi.com/retail/ROM/10/20.DAT
 ```
 Namespace by server/version prefix in the R2 bucket.
+
+---
+
+## R2 Access Control: Cloudflare Worker + Token Auth
+
+The R2 bucket is not publicly accessible. A Cloudflare Worker at `dats.phoenix-xi.com` validates a Bearer token on every request before serving objects from R2.
+
+### How It Works
+
+1. The Nuxt app reads `NUXT_PUBLIC_DAT_ACCESS_TOKEN` from runtime config.
+2. If the token is set, all `DatLoader` fetch calls include `Authorization: Bearer <token>`.
+3. The Worker at `dats.phoenix-xi.com` validates the token against its `DAT_ACCESS_TOKEN` secret.
+4. Valid requests get the R2 object; invalid requests get `403 Forbidden`.
+5. The Worker also handles CORS preflight (`OPTIONS`) since `Authorization` is a non-simple header.
+
+### Worker Source
+
+Located at `infra/r2-worker/`. Key files:
+
+- `src/index.ts` - Worker script (token validation, R2 fetch, CORS)
+- `wrangler.toml` - Worker config with R2 bucket binding
+- `package.json` - Dev dependencies (wrangler, workers-types)
+
+### Deploying the Worker
+
+```bash
+cd infra/r2-worker
+pnpm install
+
+# Set the secret token (you'll be prompted to type it)
+wrangler secret put DAT_ACCESS_TOKEN
+
+# Deploy
+wrangler deploy
+```
+
+After deploying, route `dats.phoenix-xi.com/*` to the Worker in the Cloudflare dashboard and disable the R2 bucket's public custom domain.
+
+### Setting the App Token
+
+In production (Cloudflare Pages environment variables):
+```
+NUXT_PUBLIC_DAT_ACCESS_TOKEN=<same-token-as-worker>
+```
+
+For local dev, no token is needed -- `localhost:3005` doesn't require auth. The `DatLoader` only sends the `Authorization` header when the token is non-empty.
+
+### Rotating the Token
+
+1. Generate a new token.
+2. Update the Worker secret: `cd infra/r2-worker && wrangler secret put DAT_ACCESS_TOKEN`
+3. Update the app env var: `NUXT_PUBLIC_DAT_ACCESS_TOKEN=<new-token>`
+4. Redeploy both.

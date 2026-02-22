@@ -93,6 +93,34 @@ describe('DatLoader', () => {
 
     await loader.load('ROM/0/1.DAT')
 
-    expect(fetchImpl).toHaveBeenCalledWith('https://dat.example.com/ROM/0/1.DAT')
+    expect(fetchImpl).toHaveBeenCalledWith('https://dat.example.com/ROM/0/1.DAT', { headers: undefined })
+  })
+
+  it('passes configured headers to fetch requests', async () => {
+    const fetchImpl = vi.fn(async () => new Response(Uint8Array.from([1]).buffer, { status: 200 }))
+    const headers = { Authorization: 'Bearer test-token-123' }
+    const loader = new DatLoader({
+      baseUrl: 'https://dat.example.com',
+      headers,
+      fetchImpl,
+      parseDat: (_resourceName, bytes) => bytes,
+    })
+
+    await loader.load('ROM/0/1.DAT')
+
+    expect(fetchImpl).toHaveBeenCalledWith('https://dat.example.com/ROM/0/1.DAT', { headers })
+  })
+
+  it('omits headers when not configured', async () => {
+    const fetchImpl = vi.fn(async () => new Response(Uint8Array.from([1]).buffer, { status: 200 }))
+    const loader = new DatLoader({
+      baseUrl: '/test',
+      fetchImpl,
+      parseDat: (_resourceName, bytes) => bytes,
+    })
+
+    await loader.load('ROM/0/1.DAT')
+
+    expect(fetchImpl).toHaveBeenCalledWith('/test/ROM/0/1.DAT', { headers: undefined })
   })
 })

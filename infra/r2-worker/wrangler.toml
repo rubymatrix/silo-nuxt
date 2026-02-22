@@ -1,0 +1,19 @@
+name = "phoenix-dat-worker"
+main = "src/index.ts"
+compatibility_date = "2024-09-23"
+
+# Custom domain — wrangler manages the DNS record automatically
+[[routes]]
+pattern = "dats.phoenix-xi.com"
+custom_domain = true
+
+[[r2_buckets]]
+binding = "DAT_BUCKET"
+bucket_name = "phoenix-dat-files"
+
+[vars]
+ALLOWED_ORIGINS = "https://phoenix-xi.com,https://beta.phoenix-xi.com,http://localhost:3000"
+
+# Set the access token secret via:
+#   cd infra/r2-worker
+#   wrangler secret put DAT_ACCESS_TOKEN

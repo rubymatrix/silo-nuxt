@@ -24,7 +24,7 @@ describe('MainDll', () => {
     view.setUint32(0x300f0, 0xb8c5f784, false)
     view.setBigUint64(0x30100, 0x6400000100010100n, false)
 
-    view.setUint16(0x30020 + 4, 77, true)
+    view.setUint16(0x30020 + RaceGenderConfig.ElvaanMale.index * 2, 77, true)
     bytes[0x300e0 + 0x30] = 0xab
 
     const dll = new MainDll(async () => bytes)

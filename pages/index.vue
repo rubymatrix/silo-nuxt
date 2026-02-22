@@ -200,7 +200,7 @@ function countTextures(root: DirectoryResource): number {
 async function dumpDatSections(filePath: string): Promise<string> {
   const normalizedPath = filePath.replace(/^\/+/, '')
   const baseUrl = datBaseUrl.replace(/\/+$/, '')
-  const response = await fetch(`${baseUrl}/${normalizedPath}`)
+  const response = await fetch(`${baseUrl}/${normalizedPath}`, { headers: datHeaders })
   if (!response.ok) {
     return `dumpErr=${response.status}`
   }
@@ -261,9 +261,14 @@ function summarizeParsedTypes(root: DirectoryResource): string {
 
 const config = useRuntimeConfig()
 const datBaseUrl = config.public.datBaseUrl as string
+const datAccessToken = config.public.datAccessToken as string
+const datHeaders: HeadersInit | undefined = datAccessToken
+  ? { Authorization: `Bearer ${datAccessToken}` }
+  : undefined
 
 const datLoader = new DatLoader<DirectoryResource>({
   baseUrl: datBaseUrl,
+  headers: datHeaders,
   parseDat: (resourceName, bytes) => DatParser.parse(resourceName, bytes),
 })
 
@@ -316,6 +321,7 @@ function applyDebugView(): void {
 
 function createStaticModel(
   meshRoot: DirectoryResource,
+  battleAnimRoot: DirectoryResource,
   animationRoots: readonly DirectoryResource[],
   equipmentBySlot: ReadonlyMap<RuntimeItemModelSlot, DirectoryResource>,
 ): Model {
@@ -334,7 +340,7 @@ function createStaticModel(
       return fromAnimation[0] ?? null
     },
     getAnimationDirectories: () => [meshRoot, ...animationRoots, ...equipmentRoots],
-    getMainBattleAnimationDirectory: () => null,
+    getMainBattleAnimationDirectory: () => battleAnimRoot,
     getSubBattleAnimationDirectory: () => null,
     getEquipmentModelResource: (modelSlot) => equipmentBySlot.get(modelSlot) ?? null,
     getMovementInfo: (): InfoDefinition | null => {
@@ -391,6 +397,7 @@ async function loadScene(): Promise<void> {
     if (!resourceTableRuntime) {
       resourceTableRuntime = createResourceTableRuntime({
         baseUrl: datBaseUrl,
+        headers: datHeaders,
         fileTableCount: 1,
       })
       await resourceTableRuntime.preloadAll()
@@ -538,7 +545,7 @@ async function loadScene(): Promise<void> {
     }
 
     actor = new Actor(actorState, new NoOpActorController(), () => null)
-    const model = createStaticModel(meshRoot, [animRoot, upperAnimRoot, skirtAnimRoot], equipmentBySlot)
+    const model = createStaticModel(meshRoot, animRoot, [upperAnimRoot, skirtAnimRoot], equipmentBySlot)
     const actorModel = new ActorModel(runtimeActor, model)
     actorModel.setDefaultModelVisibility(new SlotVisibilityOverride(RuntimeItemModelSlot.Body, false, false))
     actor.actorModel = actorModel

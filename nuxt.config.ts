@@ -7,6 +7,7 @@ export default defineNuxtConfig({
   runtimeConfig: {
     public: {
       datBaseUrl: 'https://dats.phoenix-xi.com',
+      datAccessToken: '',
     },
   },
 })

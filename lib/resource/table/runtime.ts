@@ -6,6 +6,7 @@ import { MainDll } from './mainDll'
 
 interface ResourceTableRuntimeOptions {
   readonly baseUrl: string
+  readonly headers?: HeadersInit
   readonly fetchImpl?: DatLoaderOptions<Uint8Array>['fetchImpl']
   readonly concurrency?: number
   readonly fileTableCount?: number
@@ -23,6 +24,7 @@ export interface ResourceTableRuntime {
 export function createResourceTableRuntime(options: ResourceTableRuntimeOptions): ResourceTableRuntime {
   const bytesLoader = new DatLoader<Uint8Array>({
     baseUrl: options.baseUrl,
+    headers: options.headers,
     concurrency: options.concurrency,
     fetchImpl: options.fetchImpl,
     parseDat: (_resourceName, bytes) => bytes,

@@ -5,6 +5,7 @@ import type { EquipmentModelTable } from '~/lib/resource/table/equipmentModelTab
 
 interface UseResourceTablesOptions {
   readonly baseUrl: string
+  readonly headers?: HeadersInit
   readonly concurrency?: number
   readonly fileTableCount?: number
 }
@@ -20,6 +21,7 @@ function ensureRuntime(options?: UseResourceTablesOptions): ResourceTableRuntime
   if (runtimeRef.value === null) {
     runtimeRef.value = createResourceTableRuntime({
       baseUrl: options?.baseUrl ?? '',
+      headers: options?.headers,
       concurrency: options?.concurrency,
       fileTableCount: options?.fileTableCount,
     })
