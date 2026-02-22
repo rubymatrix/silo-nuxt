@@ -11,14 +11,14 @@ class RaceGenderConfigDef {
 }
 
 export const RaceGenderConfig = {
-  HumeMale: new RaceGenderConfigDef('HumeMale', 0, 1),
-  HumeFemale: new RaceGenderConfigDef('HumeFemale', 1, 2),
-  ElvaanMale: new RaceGenderConfigDef('ElvaanMale', 2, 3),
-  ElvaanFemale: new RaceGenderConfigDef('ElvaanFemale', 3, 4),
-  TarutaruMale: new RaceGenderConfigDef('TarutaruMale', 4, 5),
-  TarutaruFemale: new RaceGenderConfigDef('TarutaruFemale', 5, 6),
-  Mithra: new RaceGenderConfigDef('Mithra', 6, 7),
-  Galka: new RaceGenderConfigDef('Galka', 7, 8),
+  HumeMale: new RaceGenderConfigDef('HumeMale', 1, 1),
+  HumeFemale: new RaceGenderConfigDef('HumeFemale', 2, 2),
+  ElvaanMale: new RaceGenderConfigDef('ElvaanMale', 3, 3),
+  ElvaanFemale: new RaceGenderConfigDef('ElvaanFemale', 4, 4),
+  TarutaruMale: new RaceGenderConfigDef('TarutaruMale', 5, 5),
+  TarutaruFemale: new RaceGenderConfigDef('TarutaruFemale', 6, 6),
+  Mithra: new RaceGenderConfigDef('Mithra', 7, 7),
+  Galka: new RaceGenderConfigDef('Galka', 8, 8),
   values(): RaceGenderConfigDef[] {
     return [
       this.HumeMale,

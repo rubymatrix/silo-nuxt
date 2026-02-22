@@ -119,7 +119,7 @@ describe('TextureSection', () => {
 
     const parser = new TextureSection(header('tex0'))
     const result = parser.getResource(new ByteReader(b.toUint8Array(), 'texture.dat'))
-    const entry = result.entry?.datEntry as { name: string }
+    const entry = result.entry?.datEntry as unknown as { name: string }
 
     expect(entry.name.length).toBe(0x10)
     expect(entry.name.startsWith('abc')).toBe(true)
@@ -288,7 +288,7 @@ describe('SkeletonSection', () => {
 
     const parser = new SkeletonSection(sectionHeader)
     const result = parser.getResource(new ByteReader(b.toUint8Array(), 'skeleton.dat'))
-    const entry = result.entry?.datEntry as { size: { y: number } }
+    const entry = result.entry?.datEntry as unknown as { size: { y: number } }
 
     expect(entry.size.y).toBe(2)
   })
@@ -338,7 +338,7 @@ describe('SkeletonAnimationSection', () => {
       },
     })
 
-    const transform = (entry as { animation: { getJointTransform: (joint: number, frame: number) => { translation: { x: number } } | null } }).animation.getJointTransform(0, 0.5)
+    const transform = (entry as unknown as { animation: { getJointTransform: (joint: number, frame: number) => { translation: { x: number } } | null } }).animation.getJointTransform(0, 0.5)
     expect(transform?.translation.x).toBe(10)
   })
 
@@ -395,7 +395,7 @@ describe('SkeletonAnimationSection', () => {
 
     const parser = new SkeletonAnimationSection(header('anim'))
     const result = parser.getResource(new ByteReader(b.toUint8Array(), 'anim.dat'))
-    const entry = result.entry?.datEntry as { animation: SkeletonAnimation }
+    const entry = result.entry?.datEntry as unknown as { animation: SkeletonAnimation }
 
     expect(entry.animation.getJointTransform(0, 0)).toBeNull()
   })
@@ -573,7 +573,7 @@ describe('SkeletonMeshSection', () => {
 
     const parser = new SkeletonMeshSection(header('smes'))
     const result = parser.getResource(new ByteReader(b.toUint8Array(), 'mesh.dat'))
-    const entry = result.entry?.datEntry as { meshes: Array<{ vertices: Array<{ position0: { x: number, y: number, z: number }, position1: { x: number, y: number, z: number } }> }> }
+    const entry = result.entry?.datEntry as unknown as { meshes: Array<{ vertices: Array<{ position0: { x: number, y: number, z: number }, position1: { x: number, y: number, z: number } }> }> }
 
     const v = entry.meshes[0]?.vertices[0]
     expect(v?.position0).toEqual({ x: 1, y: 2, z: 3 })
@@ -659,7 +659,7 @@ describe('SkeletonMeshSection', () => {
 
     const parser = new SkeletonMeshSection(header('smes'))
     const result = parser.getResource(new ByteReader(b.toUint8Array(), 'mesh.dat'))
-    const entry = result.entry?.datEntry as { meshes: Array<{ vertices: Array<{ u: number, v: number }> }> }
+    const entry = result.entry?.datEntry as unknown as { meshes: Array<{ vertices: Array<{ u: number, v: number }> }> }
 
     expect(entry.meshes[0]?.vertices[0]).toMatchObject({ u: 0, v: 0 })
     expect(entry.meshes[0]?.vertices[1]).toMatchObject({ u: 1, v: 0 })
@@ -752,7 +752,7 @@ describe('SkeletonMeshSection', () => {
 
     const parser = new SkeletonMeshSection(header('smes'))
     const result = parser.getResource(new ByteReader(b.toUint8Array(), 'mesh.dat'))
-    const entry = result.entry?.datEntry as { meshes: Array<{ meshType: string, vertices: Array<{ color?: { b: number, g: number, r: number, a: number } }> }> }
+    const entry = result.entry?.datEntry as unknown as { meshes: Array<{ meshType: string, vertices: Array<{ color?: { b: number, g: number, r: number, a: number } }> }> }
 
     expect(entry.meshes).toHaveLength(2)
     expect(entry.meshes[0]?.meshType).toBe('TriMesh')
@@ -840,7 +840,7 @@ describe('SkeletonMeshSection', () => {
 
     const parser = new SkeletonMeshSection(header('smes'))
     const result = parser.getResource(new ByteReader(b.toUint8Array(), 'mesh.dat'))
-    const entry = result.entry?.datEntry as { meshes: Array<{ vertices: Array<{ position0: { x: number } }> }> }
+    const entry = result.entry?.datEntry as unknown as { meshes: Array<{ vertices: Array<{ position0: { x: number } }> }> }
 
     expect(entry.meshes).toHaveLength(2)
     expect(entry.meshes[0]?.vertices[0]?.position0.x).toBe(1)
@@ -917,7 +917,7 @@ describe('WeightedMeshSection', () => {
     const result = parser.getResource(new ByteReader(b.toUint8Array(), 'weighted.dat'))
     const entry = result.entry?.datEntry
 
-    const mesh = (entry as { weightedMesh: { getWeightedTriangles: (weights: number[]) => Array<{ position: { x: number } }> } }).weightedMesh
+    const mesh = (entry as unknown as { weightedMesh: { getWeightedTriangles: (weights: number[]) => Array<{ position: { x: number } }> } }).weightedMesh
     const blended = mesh.getWeightedTriangles([0.25, 0.75])
 
     expect(blended[0]?.position.x).toBe(7.5)

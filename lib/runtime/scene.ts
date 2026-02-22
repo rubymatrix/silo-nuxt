@@ -109,7 +109,7 @@ export class RuntimeScene {
         continue
       }
 
-      if (!shouldDrawMainModel(actor.actorModel)) {
+      if (!actor.actorModel || !shouldDrawMainModel(actor.actorModel)) {
         continue
       }
 

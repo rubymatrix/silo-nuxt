@@ -77,7 +77,7 @@ export interface RendererFrameStats {
 
 export class ThreeRenderer {
   readonly scene = new Scene()
-  readonly camera = new PerspectiveCamera(55, 1, 0.1, 4000)
+  readonly camera = new PerspectiveCamera(55, 1, 0.01, 4000)
 
   private readonly renderer: WebGLRenderer
   private readonly maxJointUniforms: number
@@ -171,12 +171,12 @@ export class ThreeRenderer {
     for (const object of this.actorNodes.values()) {
       for (const mesh of object.meshes) {
         mesh.geometry.dispose()
-        mesh.material.dispose()
+        disposeMaterial(mesh.material)
       }
 
       if (object.skeletonLine) {
         object.skeletonLine.line.geometry.dispose()
-        object.skeletonLine.line.material.dispose()
+        disposeMaterial(object.skeletonLine.line.material)
       }
     }
 
@@ -302,6 +302,9 @@ export class ThreeRenderer {
       })
 
       const renderMesh = new Mesh(geometry, material)
+      // GPU skinning moves vertices beyond the bind-pose bounding sphere,
+      // so disable Three.js frustum culling to prevent incorrect clipping.
+      renderMesh.frustumCulled = false
       meshes.push(renderMesh)
       root.add(renderMesh)
     }
@@ -543,6 +546,14 @@ export function applySoftwareSkinningToMesh(mesh: Mesh, jointMatrices: readonly 
 
   position.needsUpdate = true
   geometry.computeBoundingSphere()
+}
+
+function disposeMaterial(material: Material | Material[]): void {
+  if (Array.isArray(material)) {
+    material.forEach((m) => m.dispose())
+  } else {
+    material.dispose()
+  }
 }
 
 function clampJointIndex(value: number, length: number): number {

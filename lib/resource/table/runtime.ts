@@ -5,7 +5,8 @@ import { ItemModelTable } from './itemModelTable'
 import { MainDll } from './mainDll'
 
 interface ResourceTableRuntimeOptions {
-  readonly baseUrl?: string
+  readonly baseUrl: string
+  readonly headers?: HeadersInit
   readonly fetchImpl?: DatLoaderOptions<Uint8Array>['fetchImpl']
   readonly concurrency?: number
   readonly fileTableCount?: number
@@ -20,9 +21,10 @@ export interface ResourceTableRuntime {
   createEquipmentModelTable(): Promise<EquipmentModelTable>
 }
 
-export function createResourceTableRuntime(options: ResourceTableRuntimeOptions = {}): ResourceTableRuntime {
+export function createResourceTableRuntime(options: ResourceTableRuntimeOptions): ResourceTableRuntime {
   const bytesLoader = new DatLoader<Uint8Array>({
     baseUrl: options.baseUrl,
+    headers: options.headers,
     concurrency: options.concurrency,
     fetchImpl: options.fetchImpl,
     parseDat: (_resourceName, bytes) => bytes,

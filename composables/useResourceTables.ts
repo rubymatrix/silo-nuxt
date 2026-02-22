@@ -4,7 +4,8 @@ import { createResourceTableRuntime, type ResourceTableRuntime } from '~/lib/res
 import type { EquipmentModelTable } from '~/lib/resource/table/equipmentModelTable'
 
 interface UseResourceTablesOptions {
-  readonly baseUrl?: string
+  readonly baseUrl: string
+  readonly headers?: HeadersInit
   readonly concurrency?: number
   readonly fileTableCount?: number
 }
@@ -19,7 +20,8 @@ const error = shallowRef<Error | null>(null)
 function ensureRuntime(options?: UseResourceTablesOptions): ResourceTableRuntime {
   if (runtimeRef.value === null) {
     runtimeRef.value = createResourceTableRuntime({
-      baseUrl: options?.baseUrl,
+      baseUrl: options?.baseUrl ?? '',
+      headers: options?.headers,
       concurrency: options?.concurrency,
       fileTableCount: options?.fileTableCount,
     })

@@ -1,15 +1,16 @@
 export interface DatLoaderOptions<TResource> {
-  readonly baseUrl?: string
+  readonly baseUrl: string
+  readonly headers?: HeadersInit
   readonly concurrency?: number
   readonly fetchImpl?: typeof fetch
   readonly parseDat: (resourceName: string, bytes: Uint8Array) => TResource | Promise<TResource>
 }
 
-const defaultBaseUrl = '/api/dat'
 const defaultConcurrency = 4
 
 export class DatLoader<TResource> {
   private readonly baseUrl: string
+  private readonly headers: HeadersInit | undefined
   private readonly concurrency: number
   private readonly fetchImpl: typeof fetch
   private readonly parseDat: DatLoaderOptions<TResource>['parseDat']
@@ -20,7 +21,8 @@ export class DatLoader<TResource> {
   private activeCount = 0
 
   constructor(options: DatLoaderOptions<TResource>) {
-    this.baseUrl = options.baseUrl ?? defaultBaseUrl
+    this.baseUrl = options.baseUrl
+    this.headers = options.headers
     this.concurrency = Math.max(1, options.concurrency ?? defaultConcurrency)
     this.fetchImpl = options.fetchImpl ?? fetch
     this.parseDat = options.parseDat
@@ -40,7 +42,7 @@ export class DatLoader<TResource> {
 
     const request = this.runWithLimit(async () => {
       const url = buildDatUrl(this.baseUrl, normalizedPath)
-      const response = await this.fetchImpl.call(globalThis, url)
+      const response = await this.fetchImpl.call(globalThis, url, { headers: this.headers })
 
       if (!response.ok) {
         throw new Error(

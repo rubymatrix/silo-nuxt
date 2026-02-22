@@ -1,0 +1,18 @@
+# Local dev: serves FFXI game directory as a static file server on port 3005.
+# Replaces `python -m http.server 3005` with nginx.
+#
+# Usage:
+#   FFXI_GAME_DIR="C:/Program Files (x86)/PlayOnline/SquareEnix/FINAL FANTASY XI" \
+#     docker compose -f docker-compose.dev.yml up -d
+#
+# Then set in .env:
+#   NUXT_PUBLIC_DAT_BASE_URL=http://localhost:3005
+
+services:
+  dat-server:
+    image: nginx:alpine
+    ports:
+      - "3005:80"
+    volumes:
+      - "${FFXI_GAME_DIR:?Set FFXI_GAME_DIR to your FFXI install path}:/usr/share/nginx/html:ro"
+    restart: unless-stopped

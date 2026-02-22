@@ -15,7 +15,8 @@ interface/type).
 
 ```bash
 pnpm install          # Install dependencies
-pnpm dev              # Start dev server (Nuxt)
+pnpm dev              # Start dev server (local DAT files from localhost:3005)
+pnpm dev:r2           # Start dev server (DAT files from Cloudflare R2 — no local FFXI needed)
 pnpm build            # Production build
 pnpm preview          # Preview production build
 ```
@@ -161,10 +162,14 @@ a `DataView` or `Uint8Array`:
 
 ### Resource Loading Pattern (from xim/poc/browser/DatLoader.kt reference)
 
-- Fetch DAT files from `http://localhost:3005/{filePath}` as `ArrayBuffer`.
+- Fetch DAT files from a configurable base URL as `ArrayBuffer`.
+- In local dev: `http://localhost:3005/{filePath}` (no auth).
+- In R2/production: `https://dats.phoenix-xi.com/{filePath}` (Bearer token auth).
 - Cache loaded resources to avoid duplicate fetches.
 - Return `Promise<DirectoryResource>` or equivalent parsed result.
 - Use a queue or concurrency limit to avoid overwhelming the server.
+- `DatLoader` accepts an optional `headers` option — when a token is configured,
+  an `Authorization: Bearer <token>` header is sent with every fetch.
 
 ### Rendering Pattern (from xim/poc/gl/ reference)
 

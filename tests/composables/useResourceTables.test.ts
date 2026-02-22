@@ -31,8 +31,8 @@ describe('useResourceTables', () => {
   it('preloads tables once and reuses runtime state', async () => {
     const { useResourceTables } = await import('~/composables/useResourceTables')
 
-    const first = useResourceTables()
-    const second = useResourceTables()
+    const first = useResourceTables({ baseUrl: 'http://localhost:3005' })
+    const second = useResourceTables({ baseUrl: 'http://localhost:3005' })
 
     await first.preload()
     await second.preload()
@@ -44,7 +44,7 @@ describe('useResourceTables', () => {
 
   it('exposes equipment table loader', async () => {
     const { useResourceTables } = await import('~/composables/useResourceTables')
-    const tables = useResourceTables()
+    const tables = useResourceTables({ baseUrl: 'http://localhost:3005' })
 
     const equipment = await tables.createEquipmentModelTable()
 
