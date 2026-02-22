@@ -1,0 +1,105 @@
+package xim.poc.game.configuration.v0
+
+import xim.poc.game.*
+import xim.util.toTruncatedString
+
+object V0StatusDescriptionHelper {
+
+    fun describeStatus(actorState: ActorState, statusState: StatusEffectState): String {
+        return when (statusState.statusEffect) {
+            StatusEffect.Haste -> "+${statusState.potency}% Haste"
+            StatusEffect.Regen, StatusEffect.Regen2 -> "+${statusState.potency} HP"
+            StatusEffect.Refresh -> "+${statusState.potency} MP"
+            StatusEffect.Impetus -> "+${statusState.counter}% Critical Hit Rate\n+${statusState.counter/2}% Critical Hit Damage\n"
+            StatusEffect.Retaliation -> "+${statusState.counter/2}% Damage"
+            StatusEffect.WarriorsCharge -> "+${statusState.potency*5} TP Bonus\n+${statusState.potency / 2}% Critical Hit Rate"
+            StatusEffect.BloodRage -> "+${statusState.potency / 2}% Max HP"
+            StatusEffect.Barfire -> "Multiplying fire damage by ${statusState.potency.toPenaltyMultiplier().s()}"
+            StatusEffect.Barblizzard -> "Multiplying ice damage by ${statusState.potency.toPenaltyMultiplier().s()}"
+            StatusEffect.Baraero -> "Multiplying wind damage by ${statusState.potency.toPenaltyMultiplier().s()}"
+            StatusEffect.Barstone -> "Multiplying earth damage by ${statusState.potency.toPenaltyMultiplier().s()}"
+            StatusEffect.Barthunder -> "Multiplying thunder damage by ${statusState.potency.toPenaltyMultiplier().s()}"
+            StatusEffect.Barwater -> "Multiplying water damage by ${statusState.potency.toPenaltyMultiplier().s()}"
+            StatusEffect.ChainAffinity -> "Multiplies the potency of the next \"physical\" Blue Magic spell by ${statusState.potency.toMultiplier().s()}"
+            StatusEffect.BurstAffinity -> "Multiplies the potency of the next \"magical\" Blue Magic spell by ${statusState.potency.toMultiplier().s()}"
+            StatusEffect.Restraint -> "Multiplying potency of \"physical\" Blue Magic spell by ${(1f + statusState.counter/400f).s()}\nMultiplies potency of the next weapon skill by ${statusState.counter.toMultiplier().s()}"
+            StatusEffect.Poison -> "-${statusState.potency} HP"
+            StatusEffect.Slow -> "-${statusState.potency}% Haste"
+            StatusEffect.Amnesia -> "Preventing use of abilities"
+            StatusEffect.Addle -> "-${statusState.potency} Fast Cast"
+            StatusEffect.Aquaveil -> "Preventing ${statusState.counter} spell interruption"
+            StatusEffect.Protect, StatusEffect.DefenseBoost -> "-${statusState.potency} physical damage taken"
+            StatusEffect.Shell -> "-${statusState.potency} magical damage taken"
+            StatusEffect.Boost -> "Multiplying the next damaging attack or ability by ${statusState.potency.toMultiplier().s()}"
+            StatusEffect.AttackBoost, StatusEffect.AttackBoost2, StatusEffect.Warcry -> "Multiplying STR by ${statusState.potency.toMultiplier().s()}"
+            StatusEffect.EvasionBoost -> "Increasing evasion rate by ${statusState.potency}"
+            StatusEffect.Burn -> "-${statusState.potency} HP\nMultiplying INT by ${statusState.secondaryPotency.s()}"
+            StatusEffect.Frost -> "-${statusState.potency} HP\nMultiplying AGI by ${statusState.secondaryPotency.s()}"
+            StatusEffect.Choke -> "-${statusState.potency} HP\nMultiplying VIT by ${statusState.secondaryPotency.s()}"
+            StatusEffect.Rasp -> "-${statusState.potency} HP\nMultiplying DEX by ${statusState.secondaryPotency.s()}"
+            StatusEffect.Shock -> "-${statusState.potency} HP\nMultiplying MND by ${statusState.secondaryPotency.s()}"
+            StatusEffect.Drown -> "-${statusState.potency} HP\nMultiplying STR by ${statusState.secondaryPotency.s()}"
+            StatusEffect.Dia -> "-${statusState.potency} HP\nMultiplying VIT by ${statusState.secondaryPotency.s()}"
+            StatusEffect.Bio -> "-${statusState.potency} HP\nMultiplying STR by ${statusState.secondaryPotency.s()}"
+            StatusEffect.StrDown -> "Multiplying STR by ${statusState.secondaryPotency.s()}"
+            StatusEffect.DexDown -> "Multiplying DEX by ${statusState.secondaryPotency.s()}"
+            StatusEffect.VitDown -> "Multiplying VIT by ${statusState.secondaryPotency.s()}"
+            StatusEffect.AgiDown -> "Multiplying AGI by ${statusState.secondaryPotency.s()}"
+            StatusEffect.IntDown -> "Multiplying INT by ${statusState.secondaryPotency.s()}"
+            StatusEffect.MndDown -> "Multiplying MND by ${statusState.secondaryPotency.s()}"
+            StatusEffect.HPDown -> "Multiplying Max HP by ${statusState.secondaryPotency.s()}"
+            StatusEffect.MPDown -> "Multiplying Max MP by ${statusState.secondaryPotency.s()}"
+            StatusEffect.AttackDown -> "Multiplying STR by ${statusState.secondaryPotency.s()}"
+            StatusEffect.DefenseDown -> "Multiplying VIT by ${statusState.secondaryPotency.s()}"
+            StatusEffect.ShiningRuby -> "-${statusState.potency} damage taken"
+            StatusEffect.Medicated -> "Preventing the use of items."
+            StatusEffect.Provoke -> "Focus is restricted to: ${source(statusState)}"
+            StatusEffect.MagicDefDown -> "+${statusState.potency} magical damage taken"
+            StatusEffect.Regain -> "+${statusState.potency} TP"
+            StatusEffect.MagicAtkDown -> "-${statusState.potency} Magic Attack Bonus"
+            StatusEffect.MagicAtkBoost, StatusEffect.MagicAtkBoost2 -> "+${statusState.potency} Magic Attack Bonus"
+            StatusEffect.MagicDefBoost, StatusEffect.MagicDefBoost2 -> "-${statusState.potency} magical damage taken"
+            StatusEffect.Elegy -> "-${statusState.potency}% Haste"
+            StatusEffect.March -> "+${statusState.potency}% Haste"
+            StatusEffect.Spontaneity -> "Reduces spell-cast time to 0.\nRemoves movement-lock from spells."
+            StatusEffect.MultiStrikes -> "Increases multi-attack rate."
+            StatusEffect.Prowess -> "Granting various boosts to mining capabilities."
+            StatusEffect.Vorseal -> "Granting various bonuses"
+            StatusEffect.Paralysis -> "${statusState.potency}% chance of preventing action."
+            StatusEffect.Blind -> "${statusState.potency}% chance of missing physical attacks."
+            StatusEffect.Silence -> "Preventing casting spells."
+            StatusEffect.Disease -> "Preventing rest."
+            StatusEffect.Curse -> "Reducing Max HP, Max MP, and movement speed by ${statusState.potency}%"
+            StatusEffect.Sleep, StatusEffect.Petrify, StatusEffect.Stun, StatusEffect.Terror -> "Preventing all action and movement."
+            StatusEffect.Bind -> "Preventing movement."
+            StatusEffect.Weight -> "Reducing movement speed by ${statusState.potency}%."
+            StatusEffect.Doom -> "Pending KO. Remove by defeating: ${source(statusState)}"
+            StatusEffect.Plague -> "-${statusState.potency} MP\n-${statusState.potency*10} TP"
+            StatusEffect.BlazeSpikes -> "Power: ${statusState.potency}"
+            StatusEffect.IceSpikes -> "Power: ${statusState.potency}"
+            StatusEffect.Blink -> "Blocking single-target abilities."
+            StatusEffect.Stoneskin -> "Blocking damage."
+            StatusEffect.ShockSpikes -> "Power: ${statusState.potency}"
+            StatusEffect.Berserk -> "Enhancing STR, but reducing VIT."
+            StatusEffect.Enfire -> "Power: ${statusState.potency}"
+            StatusEffect.Enblizzard -> "Power: ${statusState.potency}"
+            StatusEffect.Costume -> "Preventing actions."
+            StatusEffect.Flash -> "Greatly reducing accuracy of attacks and physical abilities."
+            StatusEffect.DreadSpikes -> "Power: ${statusState.potency}"
+            StatusEffect.Ballad -> "+${statusState.potency} MP"
+            StatusEffect.CounterBoost -> "Increasing counter-attack rate by +${statusState.potency}%"
+            StatusEffect.DelugeSpikes -> "Power: ${statusState.potency}"
+            StatusEffect.GaleSpikes -> "Power: ${statusState.potency}"
+            else -> ""
+        }
+    }
+
+    private fun Float.s(): String {
+        return this.toTruncatedString(2)
+    }
+
+    private fun source(statusState: StatusEffectState): String {
+        return ActorStateManager[statusState.sourceId]?.name ?: ""
+    }
+
+}

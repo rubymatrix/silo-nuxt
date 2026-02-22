@@ -1,0 +1,33 @@
+{
+  "name": "silo-nuxt",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "nuxt dev",
+    "build": "nuxt build",
+    "preview": "nuxt preview",
+    "test": "vitest run",
+    "postinstall": "nuxt prepare"
+  },
+  "dependencies": {
+    "@vueuse/core": "14.2.1",
+    "class-variance-authority": "0.7.1",
+    "clsx": "2.1.1",
+    "lucide-vue-next": "0.563.0",
+    "qrcode.vue": "3.8.0",
+    "reka-ui": "2.8.0",
+    "tailwind-merge": "3.4.0",
+    "three": "^0.183.1"
+  },
+  "devDependencies": {
+    "@nuxt/test-utils": "^4.0.0",
+    "@tailwindcss/vite": "4.1.18",
+    "@vue/test-utils": "^2.4.6",
+    "nuxt": "3.21.1",
+    "shadcn-nuxt": "2.4.3",
+    "shadcn-vue": "2.4.3",
+    "tailwindcss": "4.1.18",
+    "typescript": "5.9.3",
+    "vitest": "^4.0.18"
+  }
+}
