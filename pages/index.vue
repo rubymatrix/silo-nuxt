@@ -10,26 +10,142 @@
         </p>
       </header>
 
-      <div class="status-grid">
-        <div>
-          <label class="label" for="race-gender-select">Race / Gender</label>
-          <select
-            id="race-gender-select"
-            v-model="selectedRaceGender"
-            :disabled="isLoading"
-            @change="loadScene"
-          >
-            <option
-              v-for="option in raceGenderOptions"
-              :key="option.value"
-              :value="option.value"
+      <!-- Character Creation -->
+      <div class="panel-section">
+        <h2 class="section-heading">Character</h2>
+        <div class="section-grid">
+          <div>
+            <label class="label" for="race-select">Race</label>
+            <select
+              id="race-select"
+              v-model="selectedRace"
+              :disabled="isLoading"
             >
-              {{ option.label }}
-            </option>
-          </select>
+              <option
+                v-for="option in raceOptions"
+                :key="option.value"
+                :value="option.value"
+              >
+                {{ option.label }}
+              </option>
+            </select>
+          </div>
+
+          <div v-if="hasGenderChoice">
+            <label class="label" for="gender-select">Gender</label>
+            <select
+              id="gender-select"
+              v-model="selectedGender"
+              :disabled="isLoading"
+            >
+              <option
+                v-for="option in genderOptions"
+                :key="option.value"
+                :value="option.value"
+              >
+                {{ option.label }}
+              </option>
+            </select>
+          </div>
+
+          <div class="two-col">
+            <div>
+              <label class="label" for="face-select">Face</label>
+              <select
+                id="face-select"
+                v-model.number="selectedFace"
+                :disabled="isLoading"
+              >
+                <option
+                  v-for="option in faceOptions"
+                  :key="option.value"
+                  :value="option.value"
+                >
+                  {{ option.label }}
+                </option>
+              </select>
+            </div>
+            <div>
+              <label class="label" for="hair-select">Hair Color</label>
+              <select
+                id="hair-select"
+                v-model.number="selectedHairColor"
+                :disabled="isLoading"
+              >
+                <option
+                  v-for="option in hairColorOptions"
+                  :key="option.value"
+                  :value="option.value"
+                >
+                  {{ option.label }}
+                </option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label class="label" for="size-select">Size</label>
+            <select
+              id="size-select"
+              v-model.number="selectedSize"
+              :disabled="isLoading"
+            >
+              <option
+                v-for="option in sizeOptions"
+                :key="option.value"
+                :value="option.value"
+              >
+                {{ option.label }}
+              </option>
+            </select>
+          </div>
         </div>
+      </div>
+
+      <!-- Job & Nation -->
+      <div class="panel-section">
+        <h2 class="section-heading">Configuration</h2>
+        <div class="section-grid">
+          <div>
+            <label class="label" for="job-select">Starting Job</label>
+            <select
+              id="job-select"
+              v-model.number="selectedJob"
+              :disabled="isLoading"
+            >
+              <option
+                v-for="option in startingJobOptions"
+                :key="option.value"
+                :value="option.value"
+              >
+                {{ option.label }}
+              </option>
+            </select>
+          </div>
+          <div>
+            <label class="label" for="nation-select">Starting Nation</label>
+            <select
+              id="nation-select"
+              v-model.number="selectedNation"
+              :disabled="isLoading"
+            >
+              <option
+                v-for="option in nationOptions"
+                :key="option.value"
+                :value="option.value"
+              >
+                {{ option.label }}
+              </option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Equipment -->
+      <div class="panel-section">
+        <h2 class="section-heading">Equipment</h2>
         <div class="equipment-grid">
-          <div v-for="option in equipmentSlotOptions" :key="option.key" class="equipment-slot">
+          <div v-for="option in equipmentGridOptions" :key="option.key" class="equipment-slot">
             <label class="label" :for="`equipment-${option.key}`">{{ option.label }}</label>
             <select
               :id="`equipment-${option.key}`"
@@ -48,21 +164,32 @@
             <code>{{ equipmentPathBySlot[option.key] ?? '-' }}</code>
           </div>
         </div>
-        <div>
-          <span class="label">Model DAT</span>
-          <code>{{ modelPath ?? '-' }}</code>
-        </div>
-        <div>
-          <span class="label">Animation DAT</span>
-          <code>{{ animationPath ?? '-' }}</code>
-        </div>
-        <div>
-          <span class="label">Animation Id</span>
-          <code>{{ animationId ?? '-' }}</code>
-        </div>
-        <div>
-          <span class="label">Draw Debug</span>
-          <code>{{ drawDebug }}</code>
+      </div>
+
+      <!-- Debug Status -->
+      <div class="panel-section">
+        <h2 class="section-heading">Debug</h2>
+        <div class="section-grid">
+          <div>
+            <span class="label">Model DAT</span>
+            <code>{{ modelPath ?? '-' }}</code>
+          </div>
+          <div>
+            <span class="label">Animation DAT</span>
+            <code>{{ animationPath ?? '-' }}</code>
+          </div>
+          <div>
+            <span class="label">Animation Id</span>
+            <code>{{ animationId ?? '-' }}</code>
+          </div>
+          <div>
+            <span class="label">Face Model Id</span>
+            <code>{{ computedFaceModelId }}</code>
+          </div>
+          <div>
+            <span class="label">Draw Debug</span>
+            <code>{{ drawDebug }}</code>
+          </div>
         </div>
       </div>
 
@@ -89,7 +216,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, onUnmounted, reactive, ref } from 'vue'
+import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 
 import { DatLoader } from '~/lib/loader/datLoader'
 import { DatParser, SectionHeader } from '~/lib/resource/datParser'
@@ -118,7 +245,6 @@ import {
   getXiCameraFrame,
   getPcEquipmentModelPaths,
   getPcEquipmentSlotCount,
-  raceGenderOptions,
   parameterizeAnimationId,
   type PcEquipmentPath,
   resolvePcSceneResourcePaths,
@@ -136,7 +262,86 @@ const errorMessage = ref<string | null>(null)
 const modelPath = ref<string | null>(null)
 const animationPath = ref<string | null>(null)
 const animationId = ref<string | null>(null)
-const selectedRaceGender = ref('HumeMale')
+// --- Character creation selectors ---
+type Race = 'Hume' | 'Elvaan' | 'Tarutaru' | 'Mithra' | 'Galka'
+type Gender = 'Male' | 'Female'
+
+const raceOptions: readonly { value: Race, label: string }[] = [
+  { value: 'Hume', label: 'Hume' },
+  { value: 'Elvaan', label: 'Elvaan' },
+  { value: 'Tarutaru', label: 'Tarutaru' },
+  { value: 'Mithra', label: 'Mithra' },
+  { value: 'Galka', label: 'Galka' },
+]
+
+const genderlesRaces: readonly Race[] = ['Mithra', 'Galka']
+
+const faceOptions = Array.from({ length: 8 }, (_, i) => ({
+  value: i + 1,
+  label: `Face ${i + 1}`,
+}))
+
+const hairColorOptions: readonly { value: number, label: string }[] = [
+  { value: 0, label: 'Hair A' },
+  { value: 1, label: 'Hair B' },
+]
+
+const sizeOptions: readonly { value: number, label: string }[] = [
+  { value: 0, label: 'Small' },
+  { value: 1, label: 'Medium' },
+  { value: 2, label: 'Large' },
+]
+
+const startingJobOptions: readonly { value: number, label: string }[] = [
+  { value: 1, label: 'Warrior (WAR)' },
+  { value: 2, label: 'Monk (MNK)' },
+  { value: 3, label: 'White Mage (WHM)' },
+  { value: 4, label: 'Black Mage (BLM)' },
+  { value: 5, label: 'Red Mage (RDM)' },
+  { value: 6, label: 'Thief (THF)' },
+]
+
+const nationOptions: readonly { value: number, label: string }[] = [
+  { value: 0, label: "San d'Oria" },
+  { value: 1, label: 'Bastok' },
+  { value: 2, label: 'Windurst' },
+]
+
+const selectedRace = ref<Race>('Hume')
+const selectedGender = ref<Gender>('Male')
+const selectedFace = ref(1)
+const selectedHairColor = ref(0)
+const selectedSize = ref(1)
+const selectedJob = ref(1)
+const selectedNation = ref(0)
+
+const hasGenderChoice = computed(() => !genderlesRaces.includes(selectedRace.value))
+
+const genderOptions = computed<readonly { value: Gender, label: string }[]>(() => {
+  if (!hasGenderChoice.value) return []
+  return [
+    { value: 'Male', label: 'Male' },
+    { value: 'Female', label: 'Female' },
+  ]
+})
+
+// Derive the RaceGender key used by the existing runtime (e.g. 'HumeMale', 'Mithra')
+const selectedRaceGender = computed(() => {
+  const race = selectedRace.value
+  if (race === 'Mithra' || race === 'Galka') return race
+  return `${race}${selectedGender.value}`
+})
+
+// Derive face equipment model ID from Face (1-8) + Hair (0-1)
+const computedFaceModelId = computed(() => {
+  return ((selectedFace.value - 1) * 2) + selectedHairColor.value
+})
+
+// Equipment grid excludes Face (it's driven by character selectors now)
+const equipmentGridOptions = computed(() =>
+  equipmentSlotOptions.filter((option) => option.key !== 'Face'),
+)
+
 const selectedEquipmentIds = reactive<Record<string, string>>(
   Object.fromEntries(equipmentSlotOptions.map((option) => [option.key, '0'])),
 )
@@ -636,7 +841,48 @@ async function loadScene(): Promise<void> {
   }
 }
 
+// --- Watchers for character selectors ---
+
+let suppressCharacterWatchers = false
+
+function syncFaceModelId(): void {
+  selectedEquipmentIds.Face = String(computedFaceModelId.value)
+}
+
+function resetFaceAndReload(): void {
+  suppressCharacterWatchers = true
+  selectedFace.value = 1
+  selectedHairColor.value = 0
+  suppressCharacterWatchers = false
+  syncFaceModelId()
+  loadScene()
+}
+
+// When race changes, reset dependent selectors and reload
+watch(selectedRace, (race) => {
+  if (race === 'Mithra' || race === 'Galka') {
+    suppressCharacterWatchers = true
+    selectedGender.value = 'Male'
+    suppressCharacterWatchers = false
+  }
+  resetFaceAndReload()
+})
+
+// When gender changes, reset face/hair and reload
+watch(selectedGender, () => {
+  if (suppressCharacterWatchers || !hasGenderChoice.value) return
+  resetFaceAndReload()
+})
+
+// When face or hair changes, sync the equipment model ID and reload
+watch([selectedFace, selectedHairColor], () => {
+  if (suppressCharacterWatchers) return
+  syncFaceModelId()
+  loadScene()
+})
+
 onMounted(async () => {
+  syncFaceModelId()
   await loadScene()
 })
 
@@ -666,8 +912,10 @@ onUnmounted(() => {
   backdrop-filter: blur(4px);
   padding: 1rem;
   display: grid;
-  gap: 1rem;
+  gap: 0.75rem;
   align-content: start;
+  max-height: 100vh;
+  overflow-y: auto;
 }
 
 .viewer-header h1 {
@@ -691,9 +939,29 @@ onUnmounted(() => {
   color: #587171;
 }
 
-.status-grid {
+.panel-section {
+  border-top: 1px solid #d7ddd3;
+  padding-top: 0.75rem;
+}
+
+.section-heading {
+  margin: 0 0 0.5rem;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #587171;
+  font-weight: 600;
+}
+
+.section-grid {
   display: grid;
-  gap: 0.75rem;
+  gap: 0.6rem;
+}
+
+.two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
 }
 
 .equipment-grid {
@@ -713,7 +981,7 @@ onUnmounted(() => {
   font-size: 0.72rem;
 }
 
-.status-grid .label {
+.label {
   display: block;
   font-size: 0.75rem;
   color: #5b6d6f;
@@ -722,7 +990,7 @@ onUnmounted(() => {
   margin-bottom: 0.2rem;
 }
 
-.status-grid code {
+.panel-section code {
   display: block;
   font-family: 'IBM Plex Mono', 'Consolas', monospace;
   font-size: 0.8rem;
