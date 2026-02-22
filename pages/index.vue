@@ -199,7 +199,8 @@ function countTextures(root: DirectoryResource): number {
 
 async function dumpDatSections(filePath: string): Promise<string> {
   const normalizedPath = filePath.replace(/^\/+/, '')
-  const response = await fetch(`/api/dat/${normalizedPath}`)
+  const baseUrl = datBaseUrl.replace(/\/+$/, '')
+  const response = await fetch(`${baseUrl}/${normalizedPath}`)
   if (!response.ok) {
     return `dumpErr=${response.status}`
   }
@@ -258,7 +259,11 @@ function summarizeParsedTypes(root: DirectoryResource): string {
     .join('|')
 }
 
+const config = useRuntimeConfig()
+const datBaseUrl = config.public.datBaseUrl as string
+
 const datLoader = new DatLoader<DirectoryResource>({
+  baseUrl: datBaseUrl,
   parseDat: (resourceName, bytes) => DatParser.parse(resourceName, bytes),
 })
 
@@ -382,7 +387,7 @@ async function loadScene(): Promise<void> {
   try {
     if (!resourceTableRuntime) {
       resourceTableRuntime = createResourceTableRuntime({
-        baseUrl: '/api/dat',
+        baseUrl: datBaseUrl,
         fileTableCount: 1,
       })
       await resourceTableRuntime.preloadAll()

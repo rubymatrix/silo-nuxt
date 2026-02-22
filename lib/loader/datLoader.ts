@@ -1,11 +1,10 @@
 export interface DatLoaderOptions<TResource> {
-  readonly baseUrl?: string
+  readonly baseUrl: string
   readonly concurrency?: number
   readonly fetchImpl?: typeof fetch
   readonly parseDat: (resourceName: string, bytes: Uint8Array) => TResource | Promise<TResource>
 }
 
-const defaultBaseUrl = '/api/dat'
 const defaultConcurrency = 4
 
 export class DatLoader<TResource> {
@@ -20,7 +19,7 @@ export class DatLoader<TResource> {
   private activeCount = 0
 
   constructor(options: DatLoaderOptions<TResource>) {
-    this.baseUrl = options.baseUrl ?? defaultBaseUrl
+    this.baseUrl = options.baseUrl
     this.concurrency = Math.max(1, options.concurrency ?? defaultConcurrency)
     this.fetchImpl = options.fetchImpl ?? fetch
     this.parseDat = options.parseDat

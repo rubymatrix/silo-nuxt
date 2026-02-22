@@ -4,7 +4,7 @@ import { createResourceTableRuntime, type ResourceTableRuntime } from '~/lib/res
 import type { EquipmentModelTable } from '~/lib/resource/table/equipmentModelTable'
 
 interface UseResourceTablesOptions {
-  readonly baseUrl?: string
+  readonly baseUrl: string
   readonly concurrency?: number
   readonly fileTableCount?: number
 }
