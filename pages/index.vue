@@ -275,6 +275,7 @@ let previousFrameTime = 0
 let resourceTableRuntime: ResourceTableRuntime | null = null
 let equipmentModelTable: EquipmentModelTable | null = null
 let initializedRaceName: string | null = null
+let orbitControls: OrbitControlsHandle | null = null
 
 const CANVAS_WIDTH = 1024
 const CANVAS_HEIGHT = 768
@@ -297,6 +298,8 @@ function stopLoop(): void {
 function disposeScene(): void {
   stopLoop()
 
+  orbitControls?.dispose()
+  orbitControls = null
   renderer?.dispose()
   renderer = null
   runtimeScene = null
@@ -398,6 +401,7 @@ async function loadScene(): Promise<void> {
       throw new Error('Equipment model table runtime was not initialized')
     }
 
+    const table = equipmentModelTable
     const selectedConfig = resolveRaceGenderConfig(selectedRaceGender.value)
     const isNewRaceInitialization = initializedRaceName !== selectedConfig.name
     const paths = resolvePcSceneResourcePaths(resourceTableRuntime, selectedConfig)
@@ -408,7 +412,7 @@ async function loadScene(): Promise<void> {
     for (const option of equipmentSlotOptions) {
       const modelIds = option.key === 'Face'
         ? getPcFaceModelIds()
-        : Array.from({ length: Math.max(1, getPcEquipmentSlotCount(equipmentModelTable, selectedConfig, option.slot)) }, (_, index) => index)
+        : Array.from({ length: Math.max(1, getPcEquipmentSlotCount(table, selectedConfig, option.slot)) }, (_, index) => index)
       const count = modelIds.length
       nextOptionsBySlot[option.key] = modelIds
 
@@ -428,7 +432,7 @@ async function loadScene(): Promise<void> {
     const selectedBySlot = new Map(
       equipmentSlotOptions.map((option) => [option.slot, parseSelectedModelId(option.key)] as const),
     )
-    const equipmentPaths = getPcEquipmentModelPaths(equipmentModelTable, selectedConfig, selectedBySlot)
+    const equipmentPaths = getPcEquipmentModelPaths(table, selectedConfig, selectedBySlot)
 
     const nextPathBySlot = Object.fromEntries(
       equipmentSlotOptions.map((option) => [option.key, null]),
@@ -468,7 +472,7 @@ async function loadScene(): Promise<void> {
     const faceOptions = equipmentOptionsBySlot.value.Face ?? []
     const validFacePaths = faceSlot
       ? faceOptions
-        .map((id) => ({ id, path: equipmentModelTable.getItemModelPath(selectedConfig, faceSlot, id) }))
+        .map((id) => ({ id, path: table.getItemModelPath(selectedConfig, faceSlot, id) }))
         .filter((entry) => entry.path)
       : []
 
@@ -480,14 +484,14 @@ async function loadScene(): Promise<void> {
       faceParsedDebug.value = summarizeParsedTypes(selectedFaceRoot)
     }
 
-    if (selectedFaceRoot && countMeshes(selectedFaceRoot) === 0 && countTextures(selectedFaceRoot) === 0 && equipmentModelTable) {
+    if (selectedFaceRoot && countMeshes(selectedFaceRoot) === 0 && countTextures(selectedFaceRoot) === 0) {
       if (faceSlot) {
         for (const candidateId of faceOptions) {
           if (candidateId <= 0 || candidateId === selectedFaceId) {
             continue
           }
 
-          const candidatePath = equipmentModelTable.getItemModelPath(selectedConfig, faceSlot, candidateId)
+          const candidatePath = table.getItemModelPath(selectedConfig, faceSlot, candidateId)
           if (!candidatePath) {
             continue
           }
@@ -570,6 +574,13 @@ async function loadScene(): Promise<void> {
     renderer.camera.position.set(frame.position.x, frame.position.y, frame.position.z)
     renderer.camera.lookAt(frame.target.x, frame.target.y, frame.target.z)
 
+    orbitControls?.dispose()
+    orbitControls = useOrbitControls({
+      camera: renderer.camera,
+      domElement: canvas,
+      target: { x: frame.target.x, y: frame.target.y, z: frame.target.z },
+    })
+
     previousFrameTime = performance.now()
 
     const tick = (time: number): void => {
@@ -593,6 +604,7 @@ async function loadScene(): Promise<void> {
         maxVisible: 1,
       })
 
+      orbitControls?.update()
       renderer.render(commands)
       const totalMeshResources = commands.reduce((sum, command) => sum + command.meshes.length, 0)
       const totalMeshes = commands.reduce(

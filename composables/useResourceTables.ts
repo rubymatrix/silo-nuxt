@@ -19,7 +19,7 @@ const error = shallowRef<Error | null>(null)
 function ensureRuntime(options?: UseResourceTablesOptions): ResourceTableRuntime {
   if (runtimeRef.value === null) {
     runtimeRef.value = createResourceTableRuntime({
-      baseUrl: options?.baseUrl,
+      baseUrl: options?.baseUrl ?? '',
       concurrency: options?.concurrency,
       fileTableCount: options?.fileTableCount,
     })

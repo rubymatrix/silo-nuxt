@@ -65,12 +65,12 @@ describe('DatLoader', () => {
 
   it('supports fetch implementations that require a bound this', async () => {
     const fetchHost = {
-      fetch(url: string): Promise<Response> {
+      fetch(input: RequestInfo | URL): Promise<Response> {
         if (this !== globalThis) {
           throw new TypeError('Illegal invocation')
         }
 
-        return Promise.resolve(new Response(new TextEncoder().encode(url), { status: 200 }))
+        return Promise.resolve(new Response(new TextEncoder().encode(String(input)), { status: 200 }))
       },
     }
 

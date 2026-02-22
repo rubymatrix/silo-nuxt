@@ -10,11 +10,18 @@ export const StandardPosition = {
 
 export type StandardPositionKey = keyof typeof StandardPosition
 
+interface MutableQuaternion {
+  x: number
+  y: number
+  z: number
+  w: number
+}
+
 interface JointInstance {
   readonly index: number
   readonly parentIndex: number
   readonly worldPosition: Vector3
-  readonly worldRotation: Quaternion
+  readonly worldRotation: MutableQuaternion
 }
 
 const IDENTITY_ROTATION: Quaternion = { x: 0, y: 0, z: 0, w: 1 }
