@@ -5,6 +5,9 @@ export class DatId {
   static readonly mount = new DatId('moun')
   static readonly effect = new DatId('effe')
   static readonly zero = new DatId('\u0000\u0000\u0000\u0000')
+  static readonly weather = new DatId('weat')
+  static readonly weatherSunny = new DatId('suny')
+  static readonly weatherFine = new DatId('fine')
 
   readonly id: string
 
@@ -26,6 +29,20 @@ export class DatId {
 
   isZero(): boolean {
     return this.id === DatId.zero.id
+  }
+
+  /** Parse the id string as an integer (e.g. "0600" → 600). */
+  toNumber(): number {
+    return parseInt(this.id, 10)
+  }
+
+  /** Environment resources are keyed by "HHMM" strings; extract the hour. */
+  toHourOfDay(): number {
+    return Math.floor(this.toNumber() / 100)
+  }
+
+  isNumeric(): boolean {
+    return !isNaN(parseInt(this.id, 10))
   }
 
   toString(): string {
@@ -120,6 +137,10 @@ export interface MeshRenderState {
   readonly discardThreshold: number | null
   /** Controls gl.depthMask(). When blendEnabled is true, Kotlin forces this to false. */
   readonly depthMask: boolean
+  /** When true, cull back faces. When false, render both sides. */
+  readonly useBackFaceCulling?: boolean
+  /** Polygon offset bias level. 0=Normal, 5=High (blended), 10=VeryHigh. */
+  readonly zBias?: number
 }
 
 /**
@@ -201,6 +222,7 @@ export class DirectoryResource implements DatEntry {
 
   private readonly childrenByType = new Map<Function, Map<string, DatEntry>>()
   private readonly texturesByName = new Map<string, TextureResource>()
+  private readonly zoneMeshesByName = new Map<string, DatEntry>()
 
   constructor(parent: DirectoryResource | null, id: DatId) {
     this.parent = parent
@@ -211,9 +233,42 @@ export class DirectoryResource implements DatEntry {
     return DirectoryResource.globalDir.getTextureResourceByNameAs(name)
   }
 
+  /** Number of textures registered globally (for diagnostics). */
+  static get globalTextureCount(): number {
+    return DirectoryResource.globalDir.texturesByName.size
+  }
+
+  /** Get sample global texture names (for diagnostics). */
+  static getGlobalTextureNameSample(count = 5): string[] {
+    const names: string[] = []
+    for (const key of DirectoryResource.globalDir.texturesByName.keys()) {
+      names.push(key.replace(/\0/g, '').trim())
+      if (names.length >= count) break
+    }
+    return names
+  }
+
+  /** Get all texture names from this directory and all subdirectories (for diagnostics). */
+  getAllTextureNames(): string[] {
+    const names: string[] = []
+    for (const key of this.texturesByName.keys()) {
+      names.push(key.replace(/\0/g, '').trim())
+    }
+    for (const sub of this.getSubDirectories()) {
+      names.push(...sub.getAllTextureNames())
+    }
+    return names
+  }
+
   addChild(sectionHeader: SectionHeader, datEntry: DatEntry): void {
-    const typeMap = this.childrenByType.get(sectionHeader.sectionType.resourceType) ?? new Map<string, DatEntry>()
-    this.childrenByType.set(sectionHeader.sectionType.resourceType, typeMap)
+    // Use the entry's actual constructor as the type key so that collectByType()
+    // can find it. This handles zone section types where the sectionType uses a
+    // placeholder class but the parsed entry is ZoneResource/ZoneMeshResource/etc.
+    const typeKey = (datEntry.constructor !== Object && datEntry.constructor !== ZoneSectionPlaceholder)
+      ? datEntry.constructor
+      : sectionHeader.sectionType.resourceType
+    const typeMap = this.childrenByType.get(typeKey) ?? new Map<string, DatEntry>()
+    this.childrenByType.set(typeKey, typeMap)
 
     const key = sectionHeader.sectionId.id
     const existing = typeMap.get(key)
@@ -229,6 +284,12 @@ export class DirectoryResource implements DatEntry {
 
     if (datEntry instanceof TextureResource) {
       this.trackTextureResourceByName(datEntry)
+    }
+
+    // Track zone mesh resources by name (duck-typed to avoid circular import)
+    const entryAny = datEntry as { name?: string; buffers?: unknown }
+    if (entryAny.name && entryAny.buffers && typeof entryAny.name === 'string') {
+      this.zoneMeshesByName.set(entryAny.name, datEntry)
     }
   }
 
@@ -303,6 +364,24 @@ export class DirectoryResource implements DatEntry {
     }
 
     return undefined
+  }
+
+  /**
+   * Look up a zone mesh resource by its name string.
+   * Returns the raw DatEntry -- callers should cast to ZoneMeshResource.
+   */
+  getZoneMeshByName(name: string): DatEntry | null {
+    return this.zoneMeshesByName.get(name) ?? null
+  }
+
+  /** Number of textures tracked by name in this directory (for diagnostics). */
+  get textureCount(): number {
+    return this.texturesByName.size
+  }
+
+  /** Number of zone meshes tracked by name in this directory (for diagnostics). */
+  get zoneMeshCount(): number {
+    return this.zoneMeshesByName.size
   }
 
   searchLocalAndParentsByName(name: string): TextureResource | null {
@@ -715,14 +794,27 @@ export interface SectionTypeDef {
   readonly resourceType: Function
 }
 
+/**
+ * Zone resource types use a sentinel class for section type registration to
+ * avoid circular imports. The actual zone resource classes (ZoneMeshResource,
+ * ZoneResource, EnvironmentResource) extend DatResource and are instanceof-compatible
+ * via the resolveTypeMap fallback that checks constructor.name.
+ */
+class ZoneSectionPlaceholder implements DatEntry {
+  readonly id = DatId.zero
+}
+
 export const SectionTypes = {
   S00_End: { code: 0x00, resourceType: NotImplementedResource },
   S01_Directory: { code: 0x01, resourceType: DirectoryResource },
+  S1C_ZoneDef: { code: 0x1c, resourceType: ZoneSectionPlaceholder },
   S20_Texture: { code: 0x20, resourceType: TextureResource },
   S25_WeightedMesh: { code: 0x25, resourceType: WeightedMeshResource },
   S29_Skeleton: { code: 0x29, resourceType: SkeletonResource },
   S2A_SkeletonMesh: { code: 0x2a, resourceType: SkeletonMeshResource },
   S2B_SkeletonAnimation: { code: 0x2b, resourceType: SkeletonAnimationResource },
+  S2E_ZoneMesh: { code: 0x2e, resourceType: ZoneSectionPlaceholder },
+  S2F_Environment: { code: 0x2f, resourceType: ZoneSectionPlaceholder },
   S45_Info: { code: 0x45, resourceType: InfoResource },
 } as const satisfies Record<string, SectionTypeDef>
 

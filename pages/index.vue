@@ -11,8 +11,8 @@
       </header>
 
       <!-- Character Creation -->
-      <div class="panel-section">
-        <h2 class="section-heading">Character</h2>
+      <details class="panel-section" open>
+        <summary class="section-heading">Character</summary>
         <div class="section-grid">
           <div>
             <label class="label" for="race-select">Race</label>
@@ -99,13 +99,7 @@
               </option>
             </select>
           </div>
-        </div>
-      </div>
 
-      <!-- Job & Nation -->
-      <div class="panel-section">
-        <h2 class="section-heading">Configuration</h2>
-        <div class="section-grid">
           <div>
             <label class="label" for="job-select">Starting Job</label>
             <select
@@ -139,11 +133,42 @@
             </select>
           </div>
         </div>
-      </div>
+      </details>
+
+      <!-- Environment -->
+      <details class="panel-section" open>
+        <summary class="section-heading">Environment</summary>
+        <div class="section-grid">
+          <div>
+            <label class="label" for="time-slider">Time of Day</label>
+            <div class="time-row">
+              <input
+                id="time-slider"
+                v-model.number="timeOfDayMinutes"
+                type="range"
+                min="0"
+                max="1440"
+                step="1"
+                :disabled="isLoading"
+                class="time-slider"
+                @input="onTimeOfDayChange"
+              />
+              <input
+                :value="timeOfDayLabel"
+                type="text"
+                class="time-input"
+                :disabled="isLoading"
+                placeholder="HH:MM"
+                @change="onTimeOfDayInput"
+              />
+            </div>
+          </div>
+        </div>
+      </details>
 
       <!-- Equipment -->
-      <div class="panel-section">
-        <h2 class="section-heading">Equipment</h2>
+      <details class="panel-section">
+        <summary class="section-heading">Equipment</summary>
         <div class="equipment-grid">
           <div v-for="option in equipmentGridOptions" :key="option.key" class="equipment-slot">
             <label class="label" :for="`equipment-${option.key}`">{{ option.label }}</label>
@@ -164,12 +189,22 @@
             <code>{{ equipmentPathBySlot[option.key] ?? '-' }}</code>
           </div>
         </div>
-      </div>
+      </details>
 
       <!-- Debug Status -->
-      <div class="panel-section">
-        <h2 class="section-heading">Debug</h2>
+      <details class="panel-section">
+        <summary class="section-heading">Debug</summary>
         <div class="section-grid">
+          <div class="debug-toggles">
+            <label class="toggle">
+              <input v-model="showWireframe" type="checkbox" @change="applyDebugView" />
+              <span>Wireframe</span>
+            </label>
+            <label class="toggle">
+              <input v-model="showBones" type="checkbox" @change="applyDebugView" />
+              <span>Bones</span>
+            </label>
+          </div>
           <div>
             <span class="label">Model DAT</span>
             <code>{{ modelPath ?? '-' }}</code>
@@ -191,17 +226,9 @@
             <code>{{ drawDebug }}</code>
           </div>
         </div>
-      </div>
+      </details>
 
       <div class="actions">
-        <label class="toggle">
-          <input v-model="showWireframe" type="checkbox" @change="applyDebugView" />
-          <span>Wireframe</span>
-        </label>
-        <label class="toggle">
-          <input v-model="showBones" type="checkbox" @change="applyDebugView" />
-          <span>Bones</span>
-        </label>
         <button type="button" :disabled="isLoading" @click="loadScene">
           {{ isLoading ? 'Loading...' : 'Reload Scene' }}
         </button>
@@ -211,12 +238,41 @@
 
     <section class="canvas-wrap">
       <canvas ref="canvasRef" />
+      <div class="canvas-overlay">
+        <div class="orbit-readout">
+          <span>Orbit {{ orbitState.azimuth }}°</span>
+          <span>Tilt {{ orbitState.elevation }}°</span>
+          <span>Zoom {{ orbitState.distance }}</span>
+          <span v-if="debugCamera">Target {{ orbitState.target.x }}, {{ orbitState.target.y }}, {{ orbitState.target.z }}</span>
+          <span v-if="debugCamera && groundHit.hit" class="ground-hit">Ground {{ groundHit.x }}, {{ groundHit.y }}, {{ groundHit.z }}</span>
+          <span v-if="debugCamera && !groundHit.hit" class="ground-miss">Ground (no hit)</span>
+        </div>
+        <div class="orbit-actions">
+          <label class="overlay-toggle" title="Free-fly camera: right-drag to pan, scroll to zoom">
+            <input v-model="debugCamera" type="checkbox" @change="onDebugCameraToggle" />
+            <span>Debug Cam</span>
+          </label>
+          <label class="overlay-toggle" title="Slowly spin the model">
+            <input v-model="autoRotate" type="checkbox" @change="onAutoRotateToggle" />
+            <span>Auto-rotate</span>
+          </label>
+          <button class="overlay-btn" title="Reset camera to initial position" @click="resetCamera">
+            Reset
+          </button>
+        </div>
+      </div>
     </section>
   </main>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
+import {
+  Mesh,
+  MeshBasicMaterial,
+  SphereGeometry,
+  type Scene as ThreeScene,
+} from 'three'
 
 import { DatLoader } from '~/lib/loader/datLoader'
 import { DatParser, SectionHeader } from '~/lib/resource/datParser'
@@ -233,8 +289,16 @@ import {
 import type { EquipmentModelTable } from '~/lib/resource/table/equipmentModelTable'
 import { createResourceTableRuntime } from '~/lib/resource/table/runtime'
 import type { ResourceTableRuntime } from '~/lib/resource/table/runtime'
+import { initZoneDecrypt } from '~/lib/resource/table/zoneDecrypt'
+import { getZoneDatPath, nationIndexToZoneKey, STARTING_ZONES } from '~/lib/resource/table/zoneTables'
+import { ZoneResource } from '~/lib/resource/zoneResource'
+import { findGroundY } from '~/lib/resource/zoneCollider'
+import type { LightingParams, FogParams } from '~/lib/renderer/lights'
 import { noOpFog, noOpLighting } from '~/lib/renderer/lights'
 import { ThreeRenderer } from '~/lib/renderer/threeRenderer'
+import { ZoneRenderer } from '~/lib/renderer/zoneRenderer'
+import { EnvironmentManager } from '~/lib/renderer/environmentManager'
+import { SkyboxRenderer } from '~/lib/renderer/skyboxRenderer'
 import { Actor, ActorId, type ActorState } from '~/lib/runtime/actor'
 import { NoOpActorController } from '~/lib/runtime/actorController'
 import { ActorModel, SlotVisibilityOverride, type RuntimeActor } from '~/lib/runtime/actorModel'
@@ -262,6 +326,15 @@ const errorMessage = ref<string | null>(null)
 const modelPath = ref<string | null>(null)
 const animationPath = ref<string | null>(null)
 const animationId = ref<string | null>(null)
+
+// --- Time-of-day slider (0-1440 minutes) ---
+const timeOfDayMinutes = ref(720) // Default: noon (12:00)
+const timeOfDayLabel = computed(() => {
+  const h = Math.floor(timeOfDayMinutes.value / 60)
+  const m = Math.floor(timeOfDayMinutes.value % 60)
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
+})
+
 // --- Character creation selectors ---
 type Race = 'Hume' | 'Elvaan' | 'Tarutaru' | 'Mithra' | 'Galka'
 type Gender = 'Male' | 'Female'
@@ -353,6 +426,10 @@ const equipmentPathBySlot = ref<Record<string, string | null>>(
 )
 const showWireframe = ref(false)
 const showBones = ref(false)
+const autoRotate = ref(false)
+const debugCamera = ref(false)
+const orbitState = reactive({ azimuth: 0, elevation: 0, distance: 0, target: { x: 0, y: 0, z: 0 } })
+const groundHit = reactive({ x: 0, y: 0, z: 0, hit: false })
 const drawDebug = ref('idle')
 const modelDebug = ref('')
 const slotDebug = ref('')
@@ -486,6 +563,20 @@ let resourceTableRuntime: ResourceTableRuntime | null = null
 let equipmentModelTable: EquipmentModelTable | null = null
 let initializedRaceName: string | null = null
 let orbitControls: OrbitControlsHandle | null = null
+let zoneRenderer: ZoneRenderer | null = null
+let skyboxRenderer: SkyboxRenderer | null = null
+const envManager = new EnvironmentManager()
+let zoneDecryptInitialized = false
+let currentZoneId: number | null = null
+let currentCollisionMap: import('~/lib/resource/zoneResource').CollisionMap | null = null
+let debugMarker: Mesh | null = null
+
+// Zone DAT loader (parses with zoneResource: true)
+const zoneDatLoader = new DatLoader<DirectoryResource>({
+  baseUrl: datBaseUrl,
+  headers: datHeaders,
+  parseDat: (resourceName, bytes) => DatParser.parse(resourceName, bytes, { zoneResource: true }),
+})
 
 const CANVAS_WIDTH = 1024
 const CANVAS_HEIGHT = 768
@@ -498,6 +589,23 @@ const resizeCanvas = (): void => {
   renderer.setSize(CANVAS_WIDTH, CANVAS_HEIGHT)
 }
 
+function onTimeOfDayChange(): void {
+  if (renderer) {
+    applyEnvironment(renderer.scene)
+  }
+}
+
+function onTimeOfDayInput(event: Event): void {
+  const raw = (event.target as HTMLInputElement).value.trim()
+  const match = raw.match(/^(\d{1,2}):(\d{2})$/)
+  if (!match) return
+  const h = parseInt(match[1]!, 10)
+  const m = parseInt(match[2]!, 10)
+  if (h < 0 || h > 23 || m < 0 || m > 59) return
+  timeOfDayMinutes.value = h * 60 + m
+  onTimeOfDayChange()
+}
+
 function stopLoop(): void {
   if (frameHandle !== 0) {
     cancelAnimationFrame(frameHandle)
@@ -508,6 +616,22 @@ function stopLoop(): void {
 function disposeScene(): void {
   stopLoop()
 
+  if (renderer) {
+    removeDebugMarker(renderer.scene)
+    if (zoneRenderer) {
+      zoneRenderer.dispose(renderer.scene)
+    }
+    if (skyboxRenderer) {
+      skyboxRenderer.dispose(renderer.scene)
+    }
+  }
+  zoneRenderer = null
+  skyboxRenderer = null
+  currentZoneId = null
+  currentCollisionMap = null
+  zoneModelLighting = null
+  zoneModelFog = null
+
   orbitControls?.dispose()
   orbitControls = null
   renderer?.dispose()
@@ -517,11 +641,114 @@ function disposeScene(): void {
   previousFrameTime = 0
 }
 
+let debugRaycastFrame = 0
+
+/**
+ * Cast a ray from the camera through the look direction, find where it
+ * hits the ground, and draw a line from camera to the ground hit point.
+ * Throttled to every 6 frames (~10 Hz) to keep perf reasonable.
+ */
+function updateDebugRaycast(scene: ThreeScene): void {
+  if (!debugCamera.value || !currentCollisionMap || !renderer) {
+    removeDebugMarker(scene)
+    groundHit.hit = false
+    return
+  }
+
+  debugRaycastFrame++
+  if (debugRaycastFrame % 6 !== 0) return
+
+  const cam = renderer.camera
+  const cx = cam.position.x
+  const cy = cam.position.y
+  const cz = cam.position.z
+
+  // Look direction: from camera toward orbit target
+  const lx = orbitState.target.x - cx
+  const ly = orbitState.target.y - cy
+  const lz = orbitState.target.z - cz
+  const len = Math.hypot(lx, ly, lz)
+  if (len < 1e-6) { groundHit.hit = false; return }
+  const dx = lx / len
+  const dy = ly / len
+  const dz = lz / len
+
+  // March along the ray to find the closest ground intersection
+  let bestHitY: number | null = null
+  let bestHitX = 0
+  let bestHitZ = 0
+  let bestDist = Infinity
+
+  for (let t = 5; t <= 200; t += 5) {
+    const sx = cx + dx * t
+    const sz = cz + dz * t
+    const gy = findGroundY(currentCollisionMap, sx, sz)
+    if (gy === null) continue
+
+    const rayY = cy + dy * t
+    const yDiff = Math.abs(rayY - gy)
+    if (yDiff < bestDist) {
+      bestDist = yDiff
+      bestHitY = gy
+      bestHitX = sx
+      bestHitZ = sz
+    }
+    if (yDiff < 3) break
+  }
+
+  if (bestHitY !== null) {
+    groundHit.x = +bestHitX.toFixed(1)
+    groundHit.y = +bestHitY.toFixed(2)
+    groundHit.z = +bestHitZ.toFixed(1)
+    groundHit.hit = true
+    drawDebugMarker(scene, bestHitX, bestHitY, bestHitZ)
+  } else {
+    groundHit.hit = false
+    removeDebugMarker(scene)
+  }
+}
+
+function drawDebugMarker(scene: ThreeScene, x: number, y: number, z: number): void {
+  if (debugMarker) {
+    debugMarker.position.set(x, y, z)
+  } else {
+    const geo = new SphereGeometry(0.4, 12, 8)
+    const mat = new MeshBasicMaterial({ color: 0x00ff44, depthTest: false, transparent: true, opacity: 0.8 })
+    debugMarker = new Mesh(geo, mat)
+    debugMarker.renderOrder = 9999
+    debugMarker.frustumCulled = false
+    scene.add(debugMarker)
+  }
+}
+
+function removeDebugMarker(scene: ThreeScene): void {
+  if (debugMarker) {
+    scene.remove(debugMarker)
+    debugMarker.geometry.dispose()
+    ;(debugMarker.material as MeshBasicMaterial).dispose()
+    debugMarker = null
+  }
+}
+
 function applyDebugView(): void {
   renderer?.setDebugView({
     showWireframe: showWireframe.value,
     showBones: showBones.value,
   })
+}
+
+function onAutoRotateToggle(): void {
+  orbitControls?.setAutoRotate(autoRotate.value)
+}
+
+function onDebugCameraToggle(): void {
+  orbitControls?.setPan(debugCamera.value)
+}
+
+function resetCamera(): void {
+  orbitControls?.reset()
+  autoRotate.value = false
+  orbitControls?.setAutoRotate(false)
 }
 
 function createStaticModel(
@@ -588,6 +815,142 @@ function toRuntimeSlot(path: PcEquipmentPath): RuntimeItemModelSlot | null {
   }
 }
 
+// Store last loaded zone environment for actor lighting
+let zoneModelLighting: LightingParams | null = null
+let zoneModelFog: FogParams | null = null
+
+/**
+ * Apply environment at the current time-of-day to all zone meshes (per-object),
+ * the actor lighting, the skybox, and the renderer clear color.
+ */
+function applyEnvironment(scene: ThreeScene): void {
+  const time = timeOfDayMinutes.value
+  const env = envManager.resolve(time)
+
+  // Per-object terrain lighting
+  if (zoneRenderer) {
+    zoneRenderer.applyLightingFromEnvManager(envManager, time)
+  }
+
+  // Model lighting for the actor
+  const model = envManager.resolveModelLighting(time)
+  zoneModelLighting = model.lighting
+  zoneModelFog = model.fog
+
+  // Skybox
+  if (skyboxRenderer && env.skyBox.radius > 0) {
+    skyboxRenderer.build(scene, env.skyBox)
+  }
+
+  // Clear color from environment
+  if (renderer) {
+    const cc = env.clearColor
+    renderer.setClearColor(cc.r, cc.g, cc.b)
+  }
+
+  // Draw distance culling
+  if (zoneRenderer && renderer) {
+    zoneRenderer.updateVisibility(renderer.camera, env.drawDistance)
+  }
+}
+
+// ─── Zone Loading ────────────────────────────────────────────────────────────
+
+/**
+ * Load and render a zone by its nation index.
+ * Returns the character's ground Y position (or fallback).
+ */
+async function loadZone(
+  nationIndex: number,
+  scene: import('three').Scene,
+): Promise<{ groundY: number, startX: number, startZ: number }> {
+  if (!resourceTableRuntime) {
+    throw new Error('Resource table runtime not initialized')
+  }
+
+  const zoneKey = nationIndexToZoneKey(nationIndex)
+  const zoneConfig = STARTING_ZONES[zoneKey]
+  if (!zoneConfig) {
+    throw new Error(`No zone config for nation index ${nationIndex}`)
+  }
+
+  // Initialize zone decryption tables once
+  if (!zoneDecryptInitialized) {
+    initZoneDecrypt(resourceTableRuntime.mainDll)
+    zoneDecryptInitialized = true
+  }
+
+  // Resolve zone DAT path
+  const zoneDatPath = getZoneDatPath(zoneConfig.zoneId, resourceTableRuntime.fileTableManager)
+  if (!zoneDatPath) {
+    throw new Error(`Could not resolve DAT path for zone ${zoneConfig.zoneId}`)
+  }
+
+  console.info(`[zone] Loading zone ${zoneConfig.name} (${zoneConfig.zoneId}) from ${zoneDatPath}`)
+
+  // Load and parse the zone DAT
+  const zoneDirectory = await zoneDatLoader.load(zoneDatPath)
+
+  // Extract zone resources from the parsed directory tree
+  const zoneResources = collectByTypeRecursive(zoneDirectory, ZoneResource)
+
+  const zoneResource = zoneResources[0] ?? null
+
+  if (!zoneResource) {
+    console.warn('[zone] No ZoneResource found in DAT')
+    return { groundY: zoneConfig.fallbackY, startX: zoneConfig.startPosition.x, startZ: zoneConfig.startPosition.z }
+  }
+
+  console.info(`[zone] Found ${zoneResource.zoneObjects.length} zone objects, collision map: ${zoneResource.collisionMap ? 'yes' : 'no'}`)
+
+  // Dispose previous zone if any
+  if (!zoneRenderer) {
+    zoneRenderer = new ZoneRenderer()
+  }
+
+  // Build zone meshes
+  zoneRenderer.buildFromZoneData(scene, {
+    zoneResource,
+    directory: zoneDirectory,
+  })
+
+  console.info(`[zone] Built ${zoneRenderer.objectCount} objects, ${zoneRenderer.totalMeshCount} meshes`)
+
+  // Initialize environment manager from zone directory tree
+  envManager.init(zoneDirectory)
+  console.info(`[zone] Environment manager initialized (envIds: ${envManager.getAvailableEnvIds().join(', ')})`)
+
+  // Initialize skybox renderer
+  if (!skyboxRenderer) {
+    skyboxRenderer = new SkyboxRenderer()
+  }
+
+  // Apply environment at current time-of-day
+  applyEnvironment(scene)
+  const env = envManager.resolve(timeOfDayMinutes.value)
+  console.info(`[zone] Applied environment (indoor=${env.indoors}, drawDistance=${env.drawDistance})`)
+
+  // Find ground Y via collision raycast
+  let groundY = zoneConfig.fallbackY
+  if (zoneResource.collisionMap) {
+    const raycastY = findGroundY(
+      zoneResource.collisionMap,
+      zoneConfig.startPosition.x,
+      zoneConfig.startPosition.z,
+    )
+    if (raycastY !== null) {
+      groundY = raycastY
+      console.info(`[zone] Ground Y at (${zoneConfig.startPosition.x}, ${zoneConfig.startPosition.z}): ${groundY}`)
+    } else {
+      console.warn(`[zone] Raycast missed, using fallback Y=${zoneConfig.fallbackY}`)
+    }
+  }
+
+  currentZoneId = zoneConfig.zoneId
+  currentCollisionMap = zoneResource.collisionMap
+  return { groundY, startX: zoneConfig.startPosition.x, startZ: zoneConfig.startPosition.z }
+}
+
 async function loadScene(): Promise<void> {
   const canvas = canvasRef.value
   if (!canvas) {
@@ -595,6 +958,7 @@ async function loadScene(): Promise<void> {
   }
 
   disposeScene()
+  timeOfDayMinutes.value = 720 // Reset to noon
   isLoading.value = true
   errorMessage.value = null
 
@@ -735,9 +1099,14 @@ async function loadScene(): Promise<void> {
       `slots=${Array.from(equipmentBySlot.keys()).join(',')}`,
     ].join(' ')
 
+    // Default position (overridden by zone loading below)
+    let charX = 0
+    let charY = 0
+    let charZ = 0
+
     const actorState: ActorState = {
       id: new ActorId(1),
-      position: { x: 0, y: 0, z: 0 },
+      position: { x: charX, y: charY, z: charZ },
       velocity: { x: 0, y: 0, z: 0 },
       rotation: 0,
       visible: true,
@@ -771,8 +1140,8 @@ async function loadScene(): Promise<void> {
 
     runtimeScene = new RuntimeScene({
       resolveActorLighting: () => ({
-        lightingParams: noOpLighting,
-        fogParams: noOpFog,
+        lightingParams: zoneModelLighting ?? noOpLighting,
+        fogParams: zoneModelFog ?? noOpFog,
         pointLights: [],
       }),
     })
@@ -781,16 +1150,48 @@ async function loadScene(): Promise<void> {
     applyDebugView()
     resizeCanvas()
 
+    // Load zone and place character on ground
+    try {
+      const zoneResult = await loadZone(selectedNation.value, renderer.scene)
+      charX = zoneResult.startX
+      charY = zoneResult.groundY
+      charZ = zoneResult.startZ
+      actorState.position.x = charX
+      actorState.position.y = charY
+      actorState.position.z = charZ
+
+      // Increase far plane for zone geometry
+      renderer.camera.far = 10000
+      renderer.camera.updateProjectionMatrix()
+    } catch (zoneError) {
+      console.warn('[zone] Failed to load zone:', zoneError)
+      // Continue without zone -- character renders at origin
+    }
+
     const skeletonHeight = actorModel.getSkeleton()?.resource.size.y ?? 1.75
     const frame = getXiCameraFrame(skeletonHeight)
-    renderer.camera.position.set(frame.position.x, frame.position.y, frame.position.z)
-    renderer.camera.lookAt(frame.target.x, frame.target.y, frame.target.z)
+
+    // Position camera relative to character's world position
+    renderer.camera.position.set(
+      charX + frame.position.x,
+      charY + frame.position.y,
+      charZ + frame.position.z,
+    )
+    const camTarget = {
+      x: charX + frame.target.x,
+      y: charY + frame.target.y,
+      z: charZ + frame.target.z,
+    }
+    renderer.camera.lookAt(camTarget.x, camTarget.y, camTarget.z)
 
     orbitControls?.dispose()
     orbitControls = useOrbitControls({
       camera: renderer.camera,
       domElement: canvas,
-      target: { x: frame.target.x, y: frame.target.y, z: frame.target.z },
+      target: camTarget,
+      maxDistance: 500,
+      enablePan: debugCamera.value,
+      panSpeed: 2.0,
     })
 
     previousFrameTime = performance.now()
@@ -816,7 +1217,19 @@ async function loadScene(): Promise<void> {
         maxVisible: 1,
       })
 
-      orbitControls?.update()
+      // Update zone wind animation (foliage sway)
+      if (zoneRenderer) {
+        zoneRenderer.updateWind(time / 1000)
+      }
+
+      const state = orbitControls?.update()
+      if (state) {
+        orbitState.azimuth = state.azimuth
+        orbitState.elevation = state.elevation
+        orbitState.distance = state.distance
+        orbitState.target = state.target
+      }
+      updateDebugRaycast(renderer.scene)
       renderer.render(commands)
       const totalMeshResources = commands.reduce((sum, command) => sum + command.meshes.length, 0)
       const totalMeshes = commands.reduce(
@@ -878,6 +1291,11 @@ watch(selectedGender, () => {
 watch([selectedFace, selectedHairColor], () => {
   if (suppressCharacterWatchers) return
   syncFaceModelId()
+  loadScene()
+})
+
+// When nation changes, reload scene with new zone
+watch(selectedNation, () => {
   loadScene()
 })
 
@@ -951,6 +1369,36 @@ onUnmounted(() => {
   letter-spacing: 0.1em;
   color: #587171;
   font-weight: 600;
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  user-select: none;
+}
+
+.section-heading::-webkit-details-marker {
+  display: none;
+}
+
+.section-heading::before {
+  content: '';
+  display: inline-block;
+  width: 0.45em;
+  height: 0.45em;
+  border-right: 2px solid #7a9595;
+  border-bottom: 2px solid #7a9595;
+  transform: rotate(-45deg);
+  transition: transform 0.15s ease;
+  flex-shrink: 0;
+}
+
+details[open] > .section-heading::before {
+  transform: rotate(45deg);
+}
+
+.panel-section:not([open]) .section-heading {
+  margin-bottom: 0;
 }
 
 .section-grid {
@@ -1009,6 +1457,30 @@ select {
   font-size: 0.95rem;
 }
 
+.time-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.time-slider {
+  flex: 1;
+  accent-color: #5e9aa4;
+  cursor: pointer;
+}
+
+.time-input {
+  width: 4.5rem;
+  border: 1px solid #8aa4a6;
+  border-radius: 8px;
+  padding: 0.3rem 0.4rem;
+  background: rgba(252, 255, 255, 0.92);
+  color: #233537;
+  font-family: 'IBM Plex Mono', 'Consolas', monospace;
+  font-size: 0.85rem;
+  text-align: center;
+}
+
 .actions {
   display: grid;
   gap: 0.5rem;
@@ -1044,12 +1516,88 @@ button:disabled {
 }
 
 .canvas-wrap {
+  position: relative;
   width: 1024px;
   height: 768px;
   border: 1px solid #c6d4d5;
   border-radius: 14px;
   overflow: hidden;
   background: linear-gradient(180deg, #edf3f6 0%, #d4e0e6 35%, #c2d1db 100%);
+}
+
+.canvas-overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  padding: 0.5rem 0.75rem;
+  pointer-events: none;
+}
+
+.orbit-readout {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  width: 220px;
+  font-family: 'IBM Plex Mono', 'Consolas', monospace;
+  font-size: 0.72rem;
+  color: rgba(255, 255, 255, 0.85);
+  letter-spacing: 0.04em;
+  background: rgba(0, 0, 0, 0.16);
+  padding: 0.35rem 0.5rem;
+  border-radius: 6px;
+}
+
+.orbit-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  pointer-events: auto;
+  background: rgba(0, 0, 0, 0.16);
+  padding: 0.35rem 0.5rem;
+  border-radius: 6px;
+}
+
+.overlay-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.85);
+  cursor: pointer;
+}
+
+.overlay-toggle input {
+  accent-color: #7fb8c4;
+}
+
+.overlay-btn {
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.85);
+  font-family: inherit;
+  font-size: 0.72rem;
+  padding: 0.2rem 0.5rem;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.overlay-btn:hover {
+  background: rgba(255, 255, 255, 0.16);
+  border-color: rgba(255, 255, 255, 0.35);
+}
+
+.ground-hit {
+  color: rgba(100, 255, 100, 0.95);
+  font-weight: 600;
+}
+
+.ground-miss {
+  color: rgba(255, 130, 100, 0.85);
 }
 
 canvas {

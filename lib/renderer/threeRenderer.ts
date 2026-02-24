@@ -1,6 +1,7 @@
 import {
   BufferAttribute,
   BufferGeometry,
+  Color,
   DoubleSide,
   Group,
   LineBasicMaterial,
@@ -92,12 +93,16 @@ export class ThreeRenderer {
     const safeWidth = Math.max(1, Math.floor(options.width ?? options.canvas.clientWidth ?? 1))
     const safeHeight = Math.max(1, Math.floor(options.height ?? options.canvas.clientHeight ?? 1))
 
-    this.renderer = new WebGLRenderer({ canvas: options.canvas, antialias: true, alpha: true })
+    this.renderer = new WebGLRenderer({ canvas: options.canvas, antialias: true, alpha: false })
     this.renderer.setPixelRatio(window.devicePixelRatio || 1)
     this.maxJointUniforms = resolveMaxJointUniforms(this.renderer.capabilities.maxVertexUniforms)
     applyXiCameraConventions(this.camera)
     this.frameBuffers = new FrameBufferManager(safeWidth, safeHeight)
     this.setSize(safeWidth, safeHeight)
+  }
+
+  setClearColor(r: number, g: number, b: number): void {
+    this.renderer.setClearColor(new Color(r, g, b), 1)
   }
 
   setSize(width: number, height: number): void {

@@ -34,6 +34,16 @@ export class TextureLink {
     const resolver = provider ?? ((name: string) => this.localDir.searchLocalAndParentsByName(name) ?? DirectoryResource.getGlobalTexture(name))
     this.linkedResource = resolver(this.name)
     this.notFound = this.linkedResource === null
+
+    if (this.notFound) {
+      const displayName = this.name.replace(/\0/g, '').trim()
+      // Don't warn for empty/null-only texture names -- these are vertex-color-only meshes
+      if (displayName.length > 0) {
+        const hexName = Array.from(this.name).map(c => c.charCodeAt(0).toString(16).padStart(2, '0')).join(' ')
+        console.warn(`[TextureLink] Texture not found: "${displayName}" len=${this.name.length} hex=[${hexName}] (dir=${this.localDir.id})`)
+      }
+    }
+
     return this.linkedResource
   }
 }

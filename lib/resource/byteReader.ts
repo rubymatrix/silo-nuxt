@@ -1,6 +1,7 @@
 export interface SectionOffsetSource {
   readonly sectionStartPosition: number
   readonly dataStartPosition: number
+  readonly sectionSize: number
 }
 
 export interface Vector2 {
@@ -131,6 +132,19 @@ export class ByteReader {
       r: this.next8(),
       a: this.next8(),
     }
+  }
+
+  nextRGBA(): BgraColor {
+    return {
+      r: this.next8(),
+      g: this.next8(),
+      b: this.next8(),
+      a: this.next8(),
+    }
+  }
+
+  nextDatId(): string {
+    return this.nextString(0x4)
   }
 
   subBuffer(size: number): Uint8Array
