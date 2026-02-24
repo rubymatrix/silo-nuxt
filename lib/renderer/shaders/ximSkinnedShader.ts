@@ -131,6 +131,11 @@ void main() {
 
   if (coloredPixel.a < uDiscardThreshold) { discard; }
 
-  gl_FragColor = uColorMask * fogCalc(vCameraPos, clamp(coloredPixel, 0.0, 1.0));
+  // Force output alpha to 1.0 -- transparency is handled by discard above.
+  // Without this, sub-1.0 alpha fragments (hair edges, etc.) bleed through the
+  // canvas compositor and produce white fringing artifacts.
+  vec4 clamped = clamp(coloredPixel, 0.0, 1.0);
+  vec4 fogged = uColorMask * fogCalc(vCameraPos, clamped);
+  gl_FragColor = vec4(fogged.rgb, 1.0);
 }
 `

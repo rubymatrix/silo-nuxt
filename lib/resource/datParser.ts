@@ -8,12 +8,15 @@ import {
   SectionTypes,
   type SectionTypeDef,
 } from './datResource'
+import { EnvironmentSection } from './environmentSection'
 import { InfoSection } from './infoSection'
 import { SkeletonAnimationSection } from './skeletonAnimationSection'
 import { SkeletonMeshSection } from './skeletonMeshSection'
 import { SkeletonSection } from './skeletonSection'
 import { TextureSection } from './textureSection'
 import { WeightedMeshSection } from './weightedMeshSection'
+import { ZoneDefSection } from './zoneDefSection'
+import { ZoneMeshSection } from './zoneMeshSection'
 
 export class ParserEntry {
   readonly datEntry: DatEntry
@@ -112,14 +115,18 @@ class EndSection implements ResourceParser {
   }
 }
 
+export interface DatParserOptions {
+  readonly zoneResource?: boolean
+}
+
 export const DatParser = {
-  parse(resourceName: string, rawDat: Uint8Array): DirectoryResource {
+  parse(resourceName: string, rawDat: Uint8Array, options?: DatParserOptions): DirectoryResource {
     let rootDirectory: DirectoryResource | null = null
     let currentDirectory: DirectoryResource | null = null
     const byteReader = new ByteReader(rawDat, resourceName)
 
     const parserContext = {
-      zoneResource: false,
+      zoneResource: options?.zoneResource ?? false,
     }
 
     while (byteReader.hasMore()) {
@@ -153,6 +160,15 @@ export const DatParser = {
         }
         if (header.sectionType.code === SectionTypes.S25_WeightedMesh.code) {
           return new WeightedMeshSection(header, parserContext)
+        }
+        if (header.sectionType.code === SectionTypes.S1C_ZoneDef.code) {
+          return new ZoneDefSection(header)
+        }
+        if (header.sectionType.code === SectionTypes.S2E_ZoneMesh.code) {
+          return new ZoneMeshSection(header)
+        }
+        if (header.sectionType.code === SectionTypes.S2F_Environment.code) {
+          return new EnvironmentSection(header)
         }
 
         return new UnhandledSection()
